@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GOT JOED // NATIVE NIDS & IPS GUARD</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        drac_bg: '#282a36', drac_panel: '#15151e', drac_border: '#373a4b',
+                        drac_fg: '#f8f8f2', drac_comment: '#6272a4', drac_cyan: '#8be9fd',
+                        drac_green: '#50fa7b', drac_orange: '#ffb86c', drac_pink: '#ff79c6',
+                        drac_purple: '#bd93f9', drac_red: '#ff5555', drac_yellow: '#f1fa8c'
+                    },
+                    fontFamily: { mono: ['"Fira Code"', 'Consolas', 'monospace'], sans: ['"Inter"', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #15151e; }
+        ::-webkit-scrollbar-thumb { background: #373a4b; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6272a4; }
+    </style>
+</head>
+<body class="bg-[#0d0d12] text-drac_fg font-sans h-screen flex flex-col overflow-hidden">
+
+    <!-- STAY-PUT COOL BANNER -->
+    <div class="flex-shrink-0 w-full bg-[#0d0d12] flex flex-col items-center justify-center py-6 border-b-2 border-drac_border/50 shadow-[0_4px_30px_rgba(0,0,0,0.5)] z-50 relative">
+        <a href="https://github.com/GOTJOED" target="_blank" class="group flex flex-col items-center justify-center text-center cursor-pointer transition-transform duration-300 hover:scale-105 no-underline">
+            
+            <!-- Styled Dashboard Banner mimicking the screenshot -->
+            <div class="border border-dashed border-drac_comment/50 rounded px-12 py-4 bg-[#15151e]/60 group-hover:border-drac_pink/50 transition-colors duration-300 flex flex-col items-center relative overflow-hidden">
+                <!-- Inner ambient glow -->
+                <div class="absolute inset-0 bg-gradient-to-r from-drac_pink/5 to-drac_purple/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                
+                <h1 class="relative z-10 text-4xl md:text-5xl font-black font-sans tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-drac_pink via-drac_purple to-drac_pink drop-shadow-[0_0_8px_rgba(255,121,198,0.7)] group-hover:drop-shadow-[0_0_15px_rgba(255,121,198,1)] mb-2 uppercase">
+                    GOT JOED
+                </h1>
+                <h2 class="relative z-10 text-xs font-mono text-drac_comment tracking-[0.4em] uppercase group-hover:text-drac_fg transition-colors duration-300 flex items-center gap-4 mt-1">
+                    <span class="w-8 h-px bg-drac_comment group-hover:bg-drac_cyan/80 transition-colors"></span>
+                    NIDS/IPS DASHBOARD
+                    <span class="w-8 h-px bg-drac_comment group-hover:bg-drac_cyan/80 transition-colors"></span>
+                </h2>
+            </div>
+        </a>
+    </div>
+
+    <!-- Header Navigation -->
+    <nav class="flex items-center justify-between p-4 bg-[#1e1e29]/30 border-b border-drac_border font-mono text-sm">
+        <div class="flex items-center gap-2">
+            <button onclick="switchTab('live')" id="nav-live" class="nav-btn px-4 py-2 rounded border border-drac_border text-drac_green bg-drac_panel transition">1. Live Overview</button>
+            <button onclick="switchTab('logs')" id="nav-logs" class="nav-btn px-4 py-2 rounded border border-transparent text-drac_comment hover:text-drac_fg transition">2. Threat Logs</button>
+            <button onclick="switchTab('ips')" id="nav-ips" class="nav-btn px-4 py-2 rounded border border-transparent text-drac_comment hover:text-drac_fg transition">3. IPS Banned Hosts</button>
+            <button onclick="switchTab('settings')" id="nav-settings" class="nav-btn px-4 py-2 rounded border border-transparent text-drac_comment hover:text-drac_fg transition">4. Settings</button>
+            <button onclick="switchTab('cve')" id="nav-cve" class="nav-btn px-4 py-2 rounded border border-transparent text-drac_comment hover:text-drac_fg transition">5. CVE Feeds</button>
+        </div>
+        
+        <div class="flex items-center gap-4 text-xs text-drac_comment">
+            <span class="flex items-center gap-2">
+                <div id="ws-status" class="w-2 h-2 rounded-full bg-drac_red"></div>
+                <span id="ws-text">WEBSOCKET: DISCONNECTED</span>
+            </span>
+            <span class="border-l border-drac_border pl-4 text-drac_green font-bold">IPS ACTIVE (IPSet/IPTables)</span>
+        </div>
+    </nav>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 overflow-hidden relative">
+        
+        <!-- TAB 1: LIVE OVERVIEW -->
+        <div id="tab-live" class="tab-content absolute inset-0 p-6 flex flex-col gap-6 overflow-hidden">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-drac_panel border border-drac_border rounded p-4">
+                    <h3 class="text-drac_comment text-xs font-mono uppercase mb-4 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-drac_cyan" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        Engine Storage Info
+                    </h3>
+                    <div class="flex items-end gap-3 mb-2">
+                        <span class="text-4xl font-bold font-mono" id="live-db-size">0.00</span>
+                        <span class="text-xl font-bold font-mono text-drac_fg">MB</span>
+                        <span class="text-drac_comment mb-1 text-sm font-mono" id="live-db-cap">/ 500 MB</span>
+                    </div>
+                    <p class="text-drac_green text-xs font-mono">● SQLite WAL Mode Active</p>
+                </div>
+                
+                <div class="bg-drac_panel border border-drac_border rounded p-4 relative">
+                    <div class="absolute top-4 right-4 bg-drac_red/10 border border-drac_red rounded-full w-10 h-10 flex items-center justify-center text-drac_red">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    </div>
+                    <h3 class="text-drac_comment text-xs font-mono uppercase mb-2 flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                        ACTIVE ALERTS
+                    </h3>
+                    <div class="flex items-baseline gap-2 mb-3 cursor-pointer" onclick="jumpToLogs('All')">
+                        <span class="text-4xl font-bold font-mono text-drac_fg" id="live-today-events">0</span>
+                        <span class="text-drac_fg text-lg font-mono">Threats</span>
+                        <span class="text-drac_comment text-sm font-mono">Today</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="jumpToLogs('CRITICAL')" class="text-[10px] bg-drac_red/10 text-drac_red px-2 py-1 border border-drac_red/30 rounded font-mono hover:bg-drac_red/30 transition shadow-[0_0_8px_rgba(255,85,85,0.2)]">
+                            <span id="live-crit-count" class="font-bold text-sm">0</span> CRITICAL
+                        </button>
+                        <button onclick="jumpToLogs('HIGH')" class="text-[10px] bg-[#ffb86c]/10 text-[#ffb86c] px-2 py-1 border border-[#ffb86c]/30 rounded font-mono hover:bg-[#ffb86c]/30 transition">
+                            <span id="live-high-count" class="font-bold text-sm">0</span> HIGH
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-drac_panel border border-drac_border rounded p-4 relative">
+                    <h3 class="text-drac_comment text-xs font-mono uppercase mb-2 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-drac_pink" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                        IPS BANNED HOSTS
+                    </h3>
+                    <div class="flex items-baseline gap-2 mb-3 cursor-pointer" onclick="switchTab('ips')">
+                        <span class="text-4xl font-bold font-mono text-drac_pink" id="live-banned-count">0</span>
+                        <span class="text-drac_fg text-lg font-mono">Hosts Banned</span>
+                    </div>
+                    <p class="text-drac_comment text-xs font-mono">Real-time IPSet DROP rules enforced</p>
+                </div>
+            </div>
+
+            <!-- Live Stream Table -->
+            <div class="flex-1 bg-drac_panel border border-drac_border rounded flex flex-col min-h-0">
+                <div class="p-3 border-b border-drac_border flex justify-between items-center bg-[#1e1e29]/50">
+                    <h3 class="text-drac_green text-xs font-mono font-bold flex items-center gap-2">
+                        <div class="w-1.5 h-4 bg-drac_green"></div> INTERACTIVE LIVE STREAM (Click event row for Remediation & Intel)
+                    </h3>
+                </div>
+                <div class="flex-1 overflow-auto p-0">
+                    <table class="w-full text-left font-mono text-xs border-collapse">
+                        <thead class="bg-[#0d0d12] text-drac_comment sticky top-0 z-10">
+                            <tr>
+                                <th class="p-3 border-b border-drac_border font-normal">Time</th>
+                                <th class="p-3 border-b border-drac_border font-normal">Proto</th>
+                                <th class="p-3 border-b border-drac_border font-normal">Source IP</th>
+                                <th class="p-3 border-b border-drac_border font-normal">Destination IP</th>
+                                <th class="p-3 border-b border-drac_border font-normal">Threat Detail Signature</th>
+                                <th class="p-3 border-b border-drac_border font-normal">IPS Action</th>
+                                <th class="p-3 border-b border-drac_border font-normal text-right">Severity</th>
+                            </tr>
+                        </thead>
+                        <tbody id="live-stream-body">
+                            <!-- Injected live via WebSocket -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: THREAT LOGS -->
+        <div id="tab-logs" class="tab-content hidden absolute inset-0 p-6 flex flex-col gap-4 overflow-hidden">
+            <div class="bg-drac_panel border border-drac_border p-4 rounded flex flex-col gap-4">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex items-center gap-4 flex-1">
+                        <div class="flex items-center gap-2">
+                            <label class="text-drac_comment text-[10px] uppercase font-mono tracking-wider">Severity</label>
+                            <select id="log-severity" onchange="fetchLogs()" class="bg-[#0d0d12] border border-drac_border text-drac_fg text-xs font-mono p-1.5 rounded focus:outline-none focus:border-drac_purple w-32 cursor-pointer transition">
+                                <option value="All">All Severities</option>
+                                <option value="CRITICAL">Critical</option>
+                                <option value="HIGH">High</option>
+                                <option value="NEUTRAL">Neutral</option>
+                            </select>
+                        </div>
+                        
+                        <div class="flex items-center gap-2">
+                            <label class="text-drac_comment text-[10px] uppercase font-mono tracking-wider">Time Range</label>
+                            <select id="log-time" onchange="fetchLogs()" class="bg-[#0d0d12] border border-drac_border text-drac_fg text-xs font-mono p-1.5 rounded focus:outline-none focus:border-drac_purple w-28 cursor-pointer transition">
+                                <option value="0">All Time</option>
+                                <option value="1">Last Hour</option>
+                                <option value="24">24 Hours</option>
+                                <option value="168">7 Days</option>
+                            </select>
+                        </div>
+
+                        <div class="flex-1 flex flex-col relative max-w-md ml-4">
+                             <label class="absolute -top-4 left-0 text-drac_comment text-[10px] uppercase font-mono tracking-wider">Granular Search</label>
+                             <div class="relative">
+                                 <svg class="w-3.5 h-3.5 text-drac_comment absolute left-2 top-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                                 <input type="text" id="log-search" onkeyup="if(event.key === 'Enter') fetchLogs()" placeholder="CVE-2026-8037, IP, /etc/passwd, SELECT..." class="w-full bg-[#0d0d12] border border-drac_border text-drac_fg text-xs font-mono p-1.5 pl-8 rounded focus:outline-none focus:border-drac_purple transition">
+                             </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button onclick="exportCSV()" class="border border-drac_border bg-[#1e1e29] hover:bg-drac_border text-drac_fg px-3 py-1.5 rounded text-xs font-mono transition">Export CSV</button>
+                        <button onclick="exportJSON()" class="border border-drac_border bg-[#1e1e29] hover:bg-drac_border text-drac_fg px-3 py-1.5 rounded text-xs font-mono transition">JSON</button>
+                        <button onclick="exportPDF()" class="border border-drac_border bg-[#1e1e29] hover:bg-drac_purple hover:text-black text-drac_fg px-3 py-1.5 rounded text-xs font-mono transition">PDF Report</button>
+                        <div class="w-px h-6 bg-drac_border mx-1"></div>
+                        <button onclick="purgeLogs()" class="border border-drac_red/50 text-drac_red bg-drac_red/10 hover:bg-drac_red/30 px-3 py-1.5 rounded text-xs font-mono transition flex items-center gap-2">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Purge All
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Enhanced Threat Logs Table -->
+            <div class="flex-1 bg-drac_panel border border-drac_border rounded overflow-auto relative">
+                <table id="main-log-table" class="w-full text-left font-mono text-xs border-collapse whitespace-nowrap">
+                    <thead class="bg-[#0d0d12] text-drac_comment sticky top-0 z-10 shadow-md">
+                        <tr>
+                            <th class="p-3 border-b border-drac_border font-normal pl-4">Timestamp</th>
+                            <th class="p-3 border-b border-drac_border font-normal">Source IP</th>
+                            <th class="p-3 border-b border-drac_border font-normal">Destination IP</th>
+                            <th class="p-3 border-b border-drac_border font-normal">Proto</th>
+                            <th class="p-3 border-b border-drac_border font-normal">Signature / Detection Info</th>
+                            <th class="p-3 border-b border-drac_border font-normal">Action Taken</th>
+                            <th class="p-3 border-b border-drac_border font-normal">Severity</th>
+                            <th class="p-3 border-b border-drac_border font-normal text-right pr-4">Granular Control</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logs-body">
+                        <!-- Fetched dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 3: IPS BANNED HOSTS -->
+        <div id="tab-ips" class="tab-content hidden absolute inset-0 p-6 flex flex-col gap-6 overflow-hidden">
+            <div class="bg-drac_panel border border-drac_border p-4 rounded flex justify-between items-center">
+                <div>
+                    <h2 class="font-mono text-sm font-bold text-drac_pink flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                        ACTIVE IPS FIREWALL RULE BASE (IPSet DROP Rules)
+                    </h2>
+                    <p class="text-xs text-drac_comment font-mono mt-1">Packets matching these source IP addresses are instantly dropped by kernel netfilter.</p>
+                </div>
+                <div class="flex gap-2">
+                    <input type="text" id="manual-ban-ip" placeholder="192.168.1.50" class="bg-[#0d0d12] border border-drac_border px-3 py-1.5 text-xs font-mono rounded text-drac_fg focus:outline-none focus:border-drac_pink">
+                    <button onclick="manualBanHost()" class="bg-drac_red hover:bg-drac_pink text-black font-bold font-mono px-4 py-1.5 rounded text-xs transition">
+                        + MANUAL BAN HOST
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex-1 bg-drac_panel border border-drac_border rounded overflow-auto">
+                <table class="w-full text-left font-mono text-xs border-collapse">
+                    <thead class="bg-[#0d0d12] text-drac_comment sticky top-0 z-10">
+                        <tr>
+                            <th class="p-3 border-b border-drac_border">Banned Host IP</th>
+                            <th class="p-3 border-b border-drac_border">Ban Justification / Reason</th>
+                            <th class="p-3 border-b border-drac_border">Timestamp Banned</th>
+                            <th class="p-3 border-b border-drac_border text-right">IPS Firewall Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="banned-hosts-body">
+                        <!-- Populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAB 4: SETTINGS -->
+        <div id="tab-settings" class="tab-content hidden absolute inset-0 p-6 overflow-y-auto">
+             <div class="max-w-3xl mx-auto space-y-6">
+                <div class="bg-drac_panel border border-drac_border rounded">
+                    <div class="p-4 border-b border-drac_border bg-[#1e1e29]/50">
+                        <h2 class="font-mono text-sm text-drac_orange flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path></svg>
+                            DYNAMIC RETENTION & AUTOMATED IPS SETTINGS
+                        </h2>
+                    </div>
+                    <div class="p-6 space-y-6">
+                        <div class="flex gap-4">
+                            <div class="flex-1">
+                                <label class="block text-xs font-mono text-drac_comment mb-2">RETENTION DAYS</label>
+                                <input type="number" id="set-retention" class="w-full bg-[#0d0d12] border border-drac_border p-3 rounded text-drac_fg font-mono text-sm focus:outline-none focus:border-drac_purple" min="1" max="365">
+                            </div>
+                            <div class="flex-1">
+                                <label class="block text-xs font-mono text-drac_comment mb-2">MAX DB CAP (MB)</label>
+                                <input type="number" id="set-max-db" class="w-full bg-[#0d0d12] border border-drac_border p-3 rounded text-drac_fg font-mono text-sm focus:outline-none focus:border-drac_purple" min="50" max="10000">
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-3 pt-4 border-t border-drac_border/50">
+                            <input type="checkbox" id="set-auto-ban" class="w-4 h-4 accent-drac_purple rounded cursor-pointer">
+                            <label for="set-auto-ban" class="text-xs font-mono text-drac_fg cursor-pointer">
+                                Enable Automatic IPS IPSet Ban for CRITICAL Severity Events
+                            </label>
+                        </div>
+
+                        <div class="flex justify-between items-center pt-4 border-t border-drac_border/50">
+                            <button onclick="triggerPrune()" class="px-4 py-2 border border-drac_red text-drac_red hover:bg-drac_red/10 rounded font-mono text-xs transition">
+                                ⚠ EMERGENCY PRUNE NOW
+                            </button>
+                            <button onclick="saveSettings()" class="px-6 py-2 bg-drac_purple text-black font-bold rounded font-mono text-xs hover:bg-drac_pink transition">
+                                SAVE IPS & RETENTION POLICY
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 5: CVE FEEDS -->
+        <div id="tab-cve" class="tab-content hidden absolute inset-0 p-6 overflow-y-auto">
+            <div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="md:col-span-1 bg-drac_panel border border-drac_border rounded p-4 flex flex-col gap-4">
+                    <div>
+                        <p class="text-drac_comment text-[10px] font-mono mb-1 uppercase">Version</p>
+                        <p class="text-drac_fg text-sm font-mono" id="cve-version">Engine Integrated</p>
+                    </div>
+                    <div>
+                        <p class="text-drac_comment text-[10px] font-mono mb-1 uppercase">Last Sync</p>
+                        <p class="text-drac_fg text-sm font-mono" id="cve-last-sync">Automated Sync</p>
+                    </div>
+                    <div>
+                        <p class="text-drac_comment text-[10px] font-mono mb-1 uppercase">Total Active Signatures</p>
+                        <p class="text-drac_green text-xl font-bold font-mono" id="cve-total-sigs">Active</p>
+                    </div>
+                    <div class="mt-auto pt-4 border-t border-drac_border">
+                        <button onclick="triggerFeedUpdate()" class="w-full bg-drac_fg text-black font-bold font-mono text-xs py-3 rounded hover:bg-drac_green transition flex justify-center items-center gap-2">
+                            UPDATE SIGNATURES NOW
+                        </button>
+                    </div>
+                </div>
+                <div class="md:col-span-2 space-y-4">
+                    <h3 class="text-drac_comment text-xs font-mono uppercase mb-2">Feed Selectors & Status</h3>
+                    <div class="bg-[#0d0d12] border border-drac_border rounded p-4 flex justify-between items-center">
+                        <span class="text-sm font-mono text-drac_fg">Abuse.ch URLhaus & Feodo Tracker</span>
+                        <span class="bg-[#1e1e29] border border-drac_border text-drac_cyan px-2 py-1 rounded text-xs font-mono" id="sig-abuse">Active C2</span>
+                    </div>
+                    <div class="bg-[#0d0d12] border border-drac_border rounded p-4 flex justify-between items-center">
+                        <span class="text-sm font-mono text-drac_fg">CISA Known Exploited Vulnerabilities (KEV)</span>
+                        <span class="bg-[#1e1e29] border border-drac_border text-drac_cyan px-2 py-1 rounded text-xs font-mono" id="sig-cisa">Active CVE</span>
+                    </div>
+                    <div class="bg-[#0d0d12] border border-drac_border rounded p-4 flex justify-between items-center">
+                        <span class="text-sm font-mono text-drac_fg">Emerging Threats ET Open Rules</span>
+                        <span class="bg-[#1e1e29] border border-drac_border text-drac_cyan px-2 py-1 rounded text-xs font-mono" id="sig-et">Active Sigs</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- INTERACTIVE THREAT INTEL & REMEDIATION MODAL -->
+    <div id="intel-modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-drac_panel border border-drac_purple rounded-lg max-w-2xl w-full p-6 shadow-2xl font-mono text-xs space-y-4">
+            <div class="flex justify-between items-start border-b border-drac_border pb-3">
+                <div>
+                    <span class="text-drac_comment uppercase text-[10px]">Threat Intelligence Breakdown</span>
+                    <h2 class="text-drac_pink font-bold text-base" id="modal-indicator">--</h2>
+                </div>
+                <button onclick="closeModal('intel-modal')" class="text-drac_comment hover:text-drac_fg text-lg">✕</button>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="text-drac_comment text-[10px] uppercase">Threat Description</label>
+                    <p class="text-drac_fg bg-[#0d0d12] p-2.5 rounded border border-drac_border mt-1" id="modal-desc">--</p>
+                </div>
+                <div>
+                    <label class="text-drac_green font-bold text-[10px] uppercase">Recommended Fix / Resolution Guidance</label>
+                    <p class="text-drac_fg bg-drac_green/10 border border-drac_green/30 p-2.5 rounded mt-1" id="modal-resolution">--</p>
+                </div>
+                <div>
+                    <label class="text-drac_comment text-[10px] uppercase block mb-1">Official CVE / Intel Reference Links</label>
+                    <div class="space-y-1 bg-[#0d0d12] p-2.5 rounded border border-drac_border">
+                        <div>
+                            <span class="text-drac_comment text-[10px]">Primary CVE Reference:</span>
+                            <a id="modal-ref-link" href="#" target="_blank" class="text-drac_cyan underline hover:text-drac_pink text-xs break-all block">--</a>
+                        </div>
+                        <div id="modal-secondary-box" class="hidden pt-1 border-t border-drac_border/50">
+                            <span class="text-drac_comment text-[10px]">Senserva Intelligence Link:</span>
+                            <a id="modal-ref-link-secondary" href="#" target="_blank" class="text-drac_purple underline hover:text-drac_pink text-xs break-all block">--</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-between items-center pt-4 border-t border-drac_border">
+                <button id="modal-ban-btn" onclick="" class="bg-drac_red text-black font-bold px-4 py-2 rounded hover:bg-drac_pink transition">
+                    BAN SOURCE IP NOW
+                </button>
+                <button onclick="closeModal('intel-modal')" class="bg-[#1e1e29] border border-drac_border text-drac_fg px-4 py-2 rounded">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- GRANULAR PAYLOAD INSPECTION MODAL -->
+    <div id="payload-modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-drac_panel border border-drac_cyan rounded-lg max-w-3xl w-full p-6 shadow-2xl font-mono text-xs space-y-4">
+            <div class="flex justify-between items-start border-b border-drac_border pb-3">
+                <div>
+                    <span class="text-drac_comment uppercase text-[10px]">Granular Packet Payload Inspector</span>
+                    <h2 class="text-drac_cyan font-bold text-base" id="payload-title">Payload Content</h2>
+                </div>
+                <button onclick="closeModal('payload-modal')" class="text-drac_comment hover:text-drac_fg text-lg">✕</button>
+            </div>
+            <div class="space-y-2">
+                <label class="text-drac_comment text-[10px] uppercase">Decoded Buffer Output</label>
+                <pre id="payload-content" class="bg-[#0d0d12] border border-drac_border text-drac_green p-4 rounded max-h-80 overflow-auto whitespace-pre-wrap break-all"></pre>
+            </div>
+            <div class="flex justify-between items-center pt-3 border-t border-drac_border">
+                <span class="text-drac_comment text-[10px]">Format: ASCII/UTF-8 Raw Protocol Stream</span>
+                <button onclick="closeModal('payload-modal')" class="bg-[#1e1e29] border border-drac_border text-drac_fg px-4 py-2 rounded">Close Inspector</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws;
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-btn').forEach(el => {
+                el.classList.remove('border-drac_border', 'text-drac_green', 'bg-drac_panel');
+                el.classList.add('border-transparent', 'text-drac_comment');
+            });
+            
+            document.getElementById('tab-' + tabId).classList.remove('hidden');
+            const activeBtn = document.getElementById('nav-' + tabId);
+            if(activeBtn) {
+                activeBtn.classList.remove('border-transparent', 'text-drac_comment');
+                activeBtn.classList.add('border-drac_border', 'text-drac_green', 'bg-drac_panel');
+            }
+
+            if(tabId === 'logs') fetchLogs();
+            if(tabId === 'ips') fetchBannedHosts();
+            if(tabId === 'settings') fetchSettings();
+            if(tabId === 'cve') fetchFeedStatus();
+            if(tabId === 'live') fetchSettings();
+        }
+
+        function jumpToLogs(severity) {
+            document.getElementById('log-severity').value = severity;
+            switchTab('logs');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        function getSeverityBadge(severity) {
+            const sev = (severity || 'NEUTRAL').toUpperCase();
+            if (sev === 'CRITICAL') return `<span class="bg-drac_red/20 text-drac_red border border-drac_red/50 px-2 py-0.5 rounded text-[10px]">CRITICAL</span>`;
+            if (sev === 'HIGH') return `<span class="bg-[#ffb86c]/20 text-[#ffb86c] border border-[#ffb86c]/50 px-2 py-0.5 rounded text-[10px]">HIGH</span>`;
+            return `<span class="bg-drac_comment/20 text-drac_comment border border-drac_comment/50 px-2 py-0.5 rounded text-[10px]">NEUTRAL</span>`;
+        }
+
+        function getActionBadge(action) {
+            if (action === 'BANNED') return `<span class="bg-drac_pink/20 text-drac_pink border border-drac_pink/50 px-2 py-0.5 rounded text-[10px] font-bold">🚫 BANNED</span>`;
+            return `<span class="bg-drac_cyan/10 text-drac_cyan border border-drac_cyan/30 px-2 py-0.5 rounded text-[10px]">👁 ALERT</span>`;
+        }
+
+        function connectWebSocket() {
+            const proto = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+            const wsUrl = proto + window.location.host + '/ws';
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = () => {
+                document.getElementById('ws-status').className = 'w-2 h-2 rounded-full bg-drac_green animate-pulse shadow-[0_0_8px_#50fa7b]';
+                document.getElementById('ws-text').innerText = 'wss://' + window.location.host + '/ws';
+                document.getElementById('ws-text').className = 'text-drac_green';
+            };
+            
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    
+                    if(data.type === 'IPS_BAN' || data.type === 'IPS_UNBAN') {
+                        fetchSettings();
+                        fetchBannedHosts();
+                        return;
+                    }
+
+                    const tbody = document.getElementById('live-stream-body');
+                    const tr = document.createElement('tr');
+                    tr.className = 'border-b border-drac_border/50 hover:bg-[#1e1e29]/60 cursor-pointer transition';
+                    tr.onclick = () => openIntelModal(data.info, data.src);
+                    
+                    tr.innerHTML = `
+                        <td class="p-3 text-drac_comment">${data.time}</td>
+                        <td class="p-3 text-drac_purple">${data.protocol}</td>
+                        <td class="p-3 text-drac_fg font-bold">${data.src}</td>
+                        <td class="p-3 text-drac_fg">${data.dst}</td>
+                        <td class="p-3 text-drac_cyan font-bold truncate max-w-xs">${escapeHtml(data.info)}</td>
+                        <td class="p-3">${getActionBadge(data.action_taken)}</td>
+                        <td class="p-3 text-right">${getSeverityBadge(data.severity)}</td>
+                    `;
+                    tbody.prepend(tr);
+                    if (tbody.children.length > 100) tbody.removeChild(tbody.lastChild);
+
+                    fetchSettings();
+                } catch(e) {}
+            };
+            
+            ws.onclose = () => {
+                document.getElementById('ws-status').className = 'w-2 h-2 rounded-full bg-drac_red';
+                document.getElementById('ws-text').innerText = 'DISCONNECTED (Reconnecting...)';
+                document.getElementById('ws-text').className = 'text-drac_red';
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+
+        async function fetchInitialLiveStream() {
+            try {
+                const res = await fetch('/api/logs?limit=50');
+                if (!res.ok) return;
+                const data = await res.json();
+                const tbody = document.getElementById('live-stream-body');
+                tbody.innerHTML = '';
+                data.forEach(log => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'border-b border-drac_border/50 hover:bg-[#1e1e29]/60 cursor-pointer transition';
+                    tr.onclick = () => openIntelModal(log.info, log.src);
+                    const timeOnly = log.timestamp.split(' ')[1] || log.timestamp;
+                    tr.innerHTML = `
+                        <td class="p-3 text-drac_comment">${timeOnly}</td>
+                        <td class="p-3 text-drac_purple">${log.proto}</td>
+                        <td class="p-3 text-drac_fg font-bold">${log.src}</td>
+                        <td class="p-3 text-drac_fg">${log.dst}</td>
+                        <td class="p-3 text-drac_cyan font-bold truncate max-w-xs">${escapeHtml(log.info)}</td>
+                        <td class="p-3">${getActionBadge(log.action_taken)}</td>
+                        <td class="p-3 text-right">${getSeverityBadge(log.severity)}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch(e) {}
+        }
+
+        async function openIntelModal(infoText, srcIp) {
+            const modal = document.getElementById('intel-modal');
+            document.getElementById('modal-indicator').innerText = infoText;
+            document.getElementById('modal-desc').innerText = "Querying live CVE threat intelligence databases...";
+            document.getElementById('modal-resolution').innerText = "Recommended Action: Apply vendor updates and enforce firewall drop rule.";
+            
+            const primaryLink = document.getElementById('modal-ref-link');
+            const secondaryBox = document.getElementById('modal-secondary-box');
+            const secondaryLink = document.getElementById('modal-ref-link-secondary');
+            
+            primaryLink.innerText = "Querying CVE.org...";
+            primaryLink.href = "#";
+            secondaryBox.classList.add('hidden');
+            
+            const banBtn = document.getElementById('modal-ban-btn');
+            banBtn.onclick = () => banHost(srcIp, `Manual ban via Intel view: ${infoText}`);
+            
+            modal.classList.remove('hidden');
+
+            try {
+                const res = await fetch(`/api/cve/lookup?indicator=${encodeURIComponent(infoText)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if(data.found) {
+                        document.getElementById('modal-indicator').innerText = `${data.cve_id || infoText}`;
+                        document.getElementById('modal-desc').innerText = `[${data.source}] ${data.description}`;
+                        document.getElementById('modal-resolution').innerText = data.resolution;
+                        
+                        primaryLink.innerText = data.ref_url;
+                        primaryLink.href = data.ref_url;
+                        
+                        if(data.secondary_ref_url) {
+                            secondaryLink.innerText = data.secondary_ref_url;
+                            secondaryLink.href = data.secondary_ref_url;
+                            secondaryBox.classList.remove('hidden');
+                        }
+                    } else {
+                        primaryLink.innerText = "https://cve.mitre.org/";
+                        primaryLink.href = "https://cve.mitre.org/";
+                    }
+                }
+            } catch(e) {}
+        }
+
+        function inspectPayload(payloadText, infoTitle) {
+            document.getElementById('payload-title').innerText = infoTitle || 'Packet Payload';
+            document.getElementById('payload-content').innerText = payloadText || 'No raw payload buffer captured.';
+            document.getElementById('payload-modal').classList.remove('hidden');
+        }
+
+        async function fetchSettings() {
+            try {
+                const res = await fetch('/api/settings');
+                if(!res.ok) return;
+                const data = await res.json();
+                
+                document.getElementById('set-retention').value = data.retention_days;
+                document.getElementById('set-max-db').value = data.max_db_size_mb;
+                document.getElementById('set-auto-ban').checked = data.auto_ban_critical;
+                
+                document.getElementById('live-db-size').innerText = data.current_db_size_mb;
+                document.getElementById('live-db-cap').innerText = `/ ${data.max_db_size_mb} MB`;
+                document.getElementById('live-today-events').innerText = data.today_count.toLocaleString();
+                document.getElementById('live-crit-count').innerText = data.crit_count.toLocaleString();
+                document.getElementById('live-high-count').innerText = data.high_count.toLocaleString();
+                document.getElementById('live-banned-count').innerText = data.banned_ips_count.toLocaleString();
+            } catch(e) { }
+        }
+
+        async function saveSettings() {
+            const retention = parseInt(document.getElementById('set-retention').value);
+            const max_db = parseInt(document.getElementById('set-max-db').value);
+            const auto_ban = document.getElementById('set-auto-ban').checked;
+            try {
+                const res = await fetch('/api/settings/retention', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ retention_days: retention, max_db_size_mb: max_db, auto_ban_critical: auto_ban })
+                });
+                if(res.ok) { alert("IPS and retention configuration saved."); fetchSettings(); }
+            } catch(e) { alert("Failed to save configuration."); }
+        }
+
+        async function fetchLogs() {
+            const tbody = document.getElementById('logs-body');
+            tbody.innerHTML = '<tr><td colspan="8" class="p-8 text-center text-drac_comment">Fetching threat logs...</td></tr>';
+            
+            const severity = document.getElementById('log-severity').value;
+            const hours = document.getElementById('log-time').value;
+            const search = document.getElementById('log-search').value;
+            
+            try {
+                const url = `/api/logs?limit=250&severity=${severity}&hours=${hours}&search=${encodeURIComponent(search)}`;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error("Network error");
+                const data = await res.json();
+                
+                tbody.innerHTML = '';
+                if(data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="p-8 text-center text-drac_comment">No matching threat telemetry found.</td></tr>';
+                    return;
+                }
+
+                data.forEach(log => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'border-b border-drac_border/50 hover:bg-[#1e1e29]/50 transition';
+                    const timeOnly = log.timestamp.split(' ')[1] || log.timestamp;
+                    
+                    const inspectBtn = document.createElement('button');
+                    inspectBtn.className = "px-2 py-1 rounded bg-[#1e1e29] border border-drac_border hover:text-drac_fg text-drac_comment text-[10px] transition";
+                    inspectBtn.innerText = "👁 Payload";
+                    inspectBtn.onclick = () => inspectPayload(log.payload, log.info);
+
+                    const banBtn = document.createElement('button');
+                    banBtn.className = "px-2 py-1 rounded bg-drac_pink/10 border border-drac_pink/30 hover:bg-drac_pink text-drac_pink hover:text-black text-[10px] transition";
+                    banBtn.innerText = "🚫 Ban IP";
+                    banBtn.onclick = () => banHost(log.src, 'Manual Ban from Threat Logs');
+
+                    const delBtn = document.createElement('button');
+                    delBtn.className = "px-2 py-1 rounded bg-drac_red/10 border border-transparent hover:border-drac_red text-drac_red text-[10px] transition";
+                    delBtn.innerText = "🗑";
+                    delBtn.onclick = () => deleteLog(log.id);
+
+                    tr.innerHTML = `
+                        <td class="p-3 text-drac_comment pl-4">${timeOnly}</td>
+                        <td class="p-3 text-drac_fg font-bold">${log.src}</td>
+                        <td class="p-3 text-drac_fg">${log.dst}</td>
+                        <td class="p-3 text-drac_purple">${log.proto}</td>
+                        <td class="p-3 text-drac_cyan font-bold truncate max-w-xs" title="${escapeHtml(log.info)}">${escapeHtml(log.info)}</td>
+                        <td class="p-3">${getActionBadge(log.action_taken)}</td>
+                        <td class="p-3">${getSeverityBadge(log.severity)}</td>
+                        <td class="p-3 text-right pr-4">
+                            <div class="flex items-center justify-end gap-2" id="controls-${log.id}"></div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                    
+                    const ctrlContainer = tr.querySelector(`#controls-${log.id}`);
+                    ctrlContainer.appendChild(inspectBtn);
+                    ctrlContainer.appendChild(banBtn);
+                    ctrlContainer.appendChild(delBtn);
+                });
+            } catch(e) {
+                tbody.innerHTML = '<tr><td colspan="8" class="p-8 text-center text-drac_red">System error fetching threat database.</td></tr>';
+            }
+        }
+
+        async function fetchBannedHosts() {
+            const tbody = document.getElementById('banned-hosts-body');
+            try {
+                const res = await fetch('/api/ips/banned');
+                if(!res.ok) return;
+                const data = await res.json();
+                tbody.innerHTML = '';
+                if(data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-drac_comment">No host IPs currently banned by IPS firewall rules.</td></tr>';
+                    return;
+                }
+                data.forEach(item => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'border-b border-drac_border/50 hover:bg-[#1e1e29]/50 transition';
+                    tr.innerHTML = `
+                        <td class="p-3 text-drac_pink font-bold font-mono">${item.ip}</td>
+                        <td class="p-3 text-drac_fg">${escapeHtml(item.reason)}</td>
+                        <td class="p-3 text-drac_comment">${item.banned_at}</td>
+                        <td class="p-3 text-right">
+                            <button onclick="unbanHost('${item.ip}')" class="bg-drac_green/10 border border-drac_green/40 hover:bg-drac_green text-drac_green hover:text-black font-mono text-[10px] px-3 py-1 rounded transition">
+                                UNBAN HOST IP
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch(e) {}
+        }
+
+        async function banHost(ip, reason) {
+            if(!ip || ip === 'N/A') return alert("Invalid host IP address.");
+            try {
+                const res = await fetch('/api/ips/ban', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip: ip, reason: reason || 'Manual Administrative Ban' })
+                });
+                if(res.ok) {
+                    closeModal('intel-modal');
+                    fetchBannedHosts();
+                    fetchLogs();
+                    fetchSettings();
+                }
+            } catch(e) { alert("Failed to issue host ban."); }
+        }
+
+        async function manualBanHost() {
+            const ip = document.getElementById('manual-ban-ip').value.trim();
+            if(!ip) return alert("Please enter a valid IPv4 address.");
+            await banHost(ip, "Manual Administrator IPS Override");
+            document.getElementById('manual-ban-ip').value = '';
+        }
+
+        async function unbanHost(ip) {
+            try {
+                const res = await fetch('/api/ips/unban', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip: ip })
+                });
+                if(res.ok) {
+                    fetchBannedHosts();
+                    fetchLogs();
+                    fetchSettings();
+                }
+            } catch(e) { alert("Failed to unban host."); }
+        }
+
+        async function deleteLog(id) {
+            if(!confirm("Delete this threat log record?")) return;
+            try {
+                await fetch(`/api/logs/${id}`, { method: 'DELETE' });
+                fetchLogs();
+                fetchSettings();
+            } catch(e) { alert("Failed to delete log."); }
+        }
+
+        async function purgeLogs() {
+            if(!confirm("CRITICAL: Purge entire threat history database?")) return;
+            try {
+                await fetch(`/api/logs/purge`, { method: 'DELETE' });
+                fetchLogs();
+                fetchSettings();
+                fetchInitialLiveStream();
+            } catch(e) { alert("Failed to purge logs."); }
+        }
+
+        async function triggerPrune() {
+            try {
+                const res = await fetch('/api/settings/prune', { method: 'POST' });
+                if(res.ok) { alert("Emergency retention prune executed."); fetchSettings(); }
+            } catch(e) { alert("Prune request failed."); }
+        }
+
+        function exportJSON() {
+            const severity = document.getElementById('log-severity').value;
+            const hours = document.getElementById('log-time').value;
+            const search = document.getElementById('log-search').value;
+            window.open(`/api/logs?limit=10000&severity=${severity}&hours=${hours}&search=${encodeURIComponent(search)}`, '_blank');
+        }
+
+        function exportCSV() {
+            const rows = document.querySelectorAll('#main-log-table tr');
+            let csvContent = "";
+            rows.forEach((row) => {
+                const cols = row.querySelectorAll('th, td');
+                const rowData = Array.from(cols).map((col, idx) => {
+                    if (idx === 7) return "";
+                    return `"${col.innerText.replace(/"/g, '""')}"`;
+                }).filter(val => val !== '""');
+                if(rowData.length > 0) csvContent += rowData.join(",") + "\r\n";
+            });
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `GOTJOED_Logs_${new Date().getTime()}.csv`;
+            link.click();
+        }
+
+        function exportPDF() {
+            const tableClone = document.getElementById('main-log-table').cloneNode(true);
+            const rows = tableClone.querySelectorAll('tr');
+            rows.forEach(row => { if(row.children[7]) row.removeChild(row.children[7]); });
+            
+            const printWindow = window.open('', '', 'width=900,height=600');
+            printWindow.document.write(`
+                <html><head><title>NIDS/IPS Threat Telemetry Report</title>
+                <style>
+                    body { background-color: #15151e; color: #f8f8f2; font-family: monospace; padding: 20px; }
+                    h2 { color: #bd93f9; text-align: center; border-bottom: 1px dashed #6272a4; padding-bottom: 10px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 11px; }
+                    th, td { padding: 8px; border-bottom: 1px solid #373a4b; text-align: left; }
+                    th { color: #6272a4; }
+                </style>
+                </head><body>
+                <h2>GOT JOED NIDS / IPS EXECUTIVE THREAT REPORT</h2>
+                <p style="color: #6272a4; text-align: center;">Generated: ${new Date().toLocaleString()}</p>
+                ${tableClone.outerHTML}
+                <script>setTimeout(() => { window.print(); window.close(); }, 500);<\/script>
+                </body></html>
+            `);
+            printWindow.document.close();
+        }
+
+        async function fetchFeedStatus() {
+            try {
+                const res = await fetch('/api/feeds/status');
+                if(res.ok) {
+                    const data = await res.json();
+                    document.getElementById('cve-version').innerText = data.version;
+                    document.getElementById('cve-last-sync').innerText = data.last_sync;
+                    document.getElementById('cve-total-sigs').innerText = data.total_active.toLocaleString() + " Active Rules";
+                    document.getElementById('sig-abuse').innerText = data.abuse_ch_c2.toLocaleString() + " C2";
+                    document.getElementById('sig-cisa').innerText = data.cisa_kev.toLocaleString() + " CVE";
+                    document.getElementById('sig-et').innerText = data.et_open.toLocaleString() + " Sigs";
+                }
+            } catch(e) {}
+        }
+
+        async function triggerFeedUpdate() {
+            try {
+                const res = await fetch('/api/feeds/update', { method: 'POST' });
+                if (res.ok) {
+                    const data = await res.json();
+                    alert(data.message);
+                } else {
+                    alert("Feed sync trigger endpoint not defined on engine.");
+                }
+            } catch(e) { alert("Failed to trigger feed update."); }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Initialize Engine UI
+        connectWebSocket();
+        fetchInitialLiveStream();
+        fetchSettings();
+    </script>
+</body>
+</html>
