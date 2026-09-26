@@ -1,4 +1,4 @@
-# GOTJOED-NIDS-IPS v1
+# GOTJOED-NIDS-IPS
 Network-based Intrusion Detection System with IPS
 
 A lightweight, locally-hosted security tool built for Linux environments. It leverages native `tshark` packet capturing in the background to monitor network traffic in real-time, matching activity against active threat intelligence feeds (Abuse.ch, CISA KEV, and Emerging Threats).
