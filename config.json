@@ -1,0 +1,5 @@
+{
+  "retention_days": 7,
+  "max_db_size_mb": 500,
+  "auto_ban_critical": true
+}
