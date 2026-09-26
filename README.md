@@ -26,6 +26,9 @@ This tool is flexible and can operate in two distinct modes depending on your ne
 **IPS Banned Hosts**
 <img width="1912" height="574" alt="image" src="https://github.com/user-attachments/assets/e41f9b45-d665-4fa4-be25-c09f7bdb2e40" />
 
+**Settings**
+<img width="1922" height="663" alt="image" src="https://github.com/user-attachments/assets/51b33da8-2905-4fc7-b7e8-0743bdf20988" />
+
 ## Getting Started
 1. Run `sudo ./setup.sh` to configure the environment.
 2. Run `sudo ./run.sh` to start the detection engine and local web server.
